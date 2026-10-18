@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Animal Hospital 진료실 미니게임</title>
+<title>Animal Hospital 진료실 점령전</title>
 <style>
   :root {
     --bg:#081412; --panel:#0f201c; --panel-alt:#142822;
@@ -146,9 +146,9 @@
   var ANOM_ALL = CCTV_ANOM_OBVIOUS.concat(CCTV_ANOM_SUBTLE);
 
   var GAMES = {
-    cctv: { title:'CCTV 관찰실', short:'이상 행동을 보이는 화면을 찾으세요. 갈수록 빠르고 복잡해집니다.',
+    cctv: { title:'진료실 5 · CCTV 관찰실', short:'이상 행동을 보이는 화면을 찾으세요. 갈수록 빠르고 복잡해집니다.',
       rule:'생명 3개로 시작합니다. 이상 행동을 보이는 화면을 누르세요. 찾을수록 제한 시간은 짧아지고 화면은 늘어나며 비슷해 보이는 화면이 섞입니다. 엉뚱한 화면을 누르거나 시간이 지나면 생명이 줄어듭니다.' },
-    ritual: { title:'죽음의 의식', short:'촛불을 끄며 최대한 오래 버티세요. 시간이 갈수록 촛불이 빨라집니다.',
+    ritual: { title:'진료실 6 · 죽음의 의식', short:'촛불을 끄며 최대한 오래 버티세요. 시간이 갈수록 촛불이 빨라집니다.',
       rule:'의식 진행도가 100%가 될 때까지 버티는 게임입니다. 붉은 촛불을 끄면 점수를 얻고 진행도가 조금 줄어듭니다. 푸른 불꽃은 건드리면 점수가 깎이고 진행도가 오릅니다. 시간이 갈수록 촛불이 빠르게, 더 많이 켜집니다.' }
   };
   var ORDER = ['cctv', 'ritual'];
@@ -370,7 +370,7 @@
       return '<button class="menu-item" data-act="open" data-game="' + k + '"><span class="mi-title">' + GAMES[k].title + '</span><span class="mi-desc">' + GAMES[k].short + (b ? ' · 내 최고 ' + b + '점' : '') + '</span></button>';
     }).join('');
     return shell(chrome('진료실 미니게임', '', '') +
-      '<header class="top"><p class="eyebrow">팀 대항 땅따먹기 · 미니게임 센터</p><h1>도전할 게임을 고르세요.</h1>' +
+      '<header class="top"><p class="eyebrow">5 · 6 진료실</p><h1>진료실 점령전</h1>' +
       '<p class="lede">모든 게임은 실패할 때까지 계속되는 기록 도전형입니다. 각 게임의 최고 점수 팀이 진료실을 차지합니다.</p></header>' +
       '<div class="menu-list">' + items + '</div>' +
       '<p class="footnote">게임이 끝나면 결과 화면(이름 · 팀 · 점수 · 시각)을 캡처해서 제출해 주세요.</p>');
@@ -383,7 +383,7 @@
     return shell(chrome(g.title, '', lockedGame ? '' : 'menu') +
       '<section class="patient-card"><p class="eyebrow">참가 등록' + (b ? ' · 내 최고 기록 ' + b + '점' : '') + '</p><p class="rule-text">' + g.rule + '</p>' +
       '<label class="field-label" for="name">이름</label>' +
-      '<input id="name" type="text" maxlength="16" autocomplete="off" placeholder="커뮤니티 닉네임" value="' + esc(player.name) + '">' +
+      '<input id="name" type="text" maxlength="16" autocomplete="off" placeholder="동물 병원 닉네임" value="' + esc(player.name) + '">' +
       '<span class="field-label" id="team-label">소속 팀</span>' +
       '<div class="chips" role="radiogroup" aria-labelledby="team-label">' + chips + '</div>' +
       '<p class="hint" id="setup-msg"></p></section>' +
