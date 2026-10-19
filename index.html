@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Animal Hospital 진료실 점령전</title>
+<title>Animal Hospital 진료실 미니게임</title>
 <style>
   :root {
     --bg:#081412; --panel:#0f201c; --panel-alt:#142822;
@@ -146,9 +146,9 @@
   var ANOM_ALL = CCTV_ANOM_OBVIOUS.concat(CCTV_ANOM_SUBTLE);
 
   var GAMES = {
-    cctv: { title:'진료실 5 · CCTV 관찰실', short:'이상 행동을 보이는 화면을 찾으세요. 갈수록 빠르고 복잡해집니다.',
+    cctv: { title:'CCTV 관찰실', short:'이상 행동을 보이는 화면을 찾으세요. 갈수록 빠르고 복잡해집니다.',
       rule:'생명 3개로 시작합니다. 이상 행동을 보이는 화면을 누르세요. 찾을수록 제한 시간은 짧아지고 화면은 늘어나며 비슷해 보이는 화면이 섞입니다. 엉뚱한 화면을 누르거나 시간이 지나면 생명이 줄어듭니다.' },
-    ritual: { title:'진료실 6 · 죽음의 의식', short:'촛불을 끄며 최대한 오래 버티세요. 시간이 갈수록 촛불이 빨라집니다.',
+    ritual: { title:'죽음의 의식', short:'촛불을 끄며 최대한 오래 버티세요. 시간이 갈수록 촛불이 빨라집니다.',
       rule:'의식 진행도가 100%가 될 때까지 버티는 게임입니다. 붉은 촛불을 끄면 점수를 얻고 진행도가 조금 줄어듭니다. 푸른 불꽃은 건드리면 점수가 깎이고 진행도가 오릅니다. 시간이 갈수록 촛불이 빠르게, 더 많이 켜집니다.' }
   };
   var ORDER = ['cctv', 'ritual'];
@@ -156,7 +156,7 @@
   var app = document.getElementById('app');
   var view = 'menu', gameKey = null, lockedGame = false;
   var player = { name:'', team:'' };
-  var G = null, R = null, loopId = null, sched = [];
+  var G = null, R = null, loopId = null, sched = [], exitArmed = false, armedView = '';
 
   // ---------- 공통 ----------
   function now(){ return Date.now(); }
@@ -216,10 +216,23 @@
     document.body.appendChild(t); setTimeout(function(){ if (t.parentNode) t.parentNode.removeChild(t); }, 1600);
   }
 
+  // 결과 화면 보호: 마지막까지 연타하던 터치가 버튼에 닿아 결과를 넘기는 일을 막음
+  function saveLast(r){
+    try { localStorage.setItem('ah_room_last_' + r.game, JSON.stringify({ name:r.name, team:r.team, score:r.score, lines:r.lines, at:r.at.getTime(), record:r.record, prev:r.prev })); } catch (e) {}
+  }
+  function loadLast(k){
+    try { var v = JSON.parse(localStorage.getItem('ah_room_last_' + k) || 'null'); return v && typeof v.score === 'number' ? v : null; } catch (e) { return null; }
+  }
+  function unlockResult(){
+    if (view !== 'result') return;
+    var b = app.querySelectorAll('.btn-row .btn-pill');
+    for (var i = 0; i < b.length; i++) { b[i].disabled = false; b[i].textContent = b[i].getAttribute('data-label') || b[i].textContent; }
+  }
   function finish(score, lines){
     var prev = bestOf(gameKey), record = score > prev;
     if (record) saveBest(gameKey, score);
-    R = { game:gameKey, name:player.name, team:player.team, score:score, lines:lines, at:new Date(), record:record, prev:prev };
+    R = { game:gameKey, name:player.name, team:player.team, score:score, lines:lines, at:new Date(), record:record, prev:prev, lockUntil:now() + 1500 };
+    saveLast(R);
     stopLoop(); G = null; view = 'result'; render();
   }
 
@@ -370,37 +383,39 @@
       return '<button class="menu-item" data-act="open" data-game="' + k + '"><span class="mi-title">' + GAMES[k].title + '</span><span class="mi-desc">' + GAMES[k].short + (b ? ' · 내 최고 ' + b + '점' : '') + '</span></button>';
     }).join('');
     return shell(chrome('진료실 미니게임', '', '') +
-      '<header class="top"><p class="eyebrow">5 · 6 진료실</p><h1>진료실 점령전</h1>' +
+      '<header class="top"><p class="eyebrow">팀 대항 땅따먹기 · 미니게임 센터</p><h1>도전할 게임을 고르세요.</h1>' +
       '<p class="lede">모든 게임은 실패할 때까지 계속되는 기록 도전형입니다. 각 게임의 최고 점수 팀이 진료실을 차지합니다.</p></header>' +
       '<div class="menu-list">' + items + '</div>' +
-      '<p class="footnote">게임이 끝나면 결과 화면(이름 · 팀 · 점수 · 시각)을 캡처해서 제출해 주세요.</p>');
+      '<p class="footnote">게임이 끝나면 결과 화면(동물병원 닉네임 · 팀 · 점수 · 시각)을 캡처해서 제출해 주세요.</p>');
   }
   function setupView(){
     var g = GAMES[gameKey], b = bestOf(gameKey);
+    var last = loadLast(gameKey), lastBtn = last ? '<button class="btn-pill" data-act="lastresult">직전 결과 다시 보기 (' + stamp(new Date(last.at)) + ')</button>' : '';
     var chips = TEAMS.map(function(t){
       return '<button type="button" class="chip" role="radio" aria-checked="' + (player.team === t ? 'true' : 'false') + '" data-act="team" data-team="' + t + '">' + t + '</button>';
     }).join('');
     return shell(chrome(g.title, '', lockedGame ? '' : 'menu') +
       '<section class="patient-card"><p class="eyebrow">참가 등록' + (b ? ' · 내 최고 기록 ' + b + '점' : '') + '</p><p class="rule-text">' + g.rule + '</p>' +
-      '<label class="field-label" for="name">이름</label>' +
-      '<input id="name" type="text" maxlength="16" autocomplete="off" placeholder="동물 병원 닉네임" value="' + esc(player.name) + '">' +
-      '<span class="field-label" id="team-label">소속 팀</span>' +
+      '<label class="field-label" for="name">동물병원 닉네임</label>' +
+      '<input id="name" type="text" maxlength="16" autocomplete="off" placeholder="동물병원 닉네임" value="' + esc(player.name) + '">' +
+      '<span class="field-label" id="team-label">소속</span>' +
       '<div class="chips" role="radiogroup" aria-labelledby="team-label">' + chips + '</div>' +
       '<p class="hint" id="setup-msg"></p></section>' +
-      '<button class="btn-pill btn-pill--primary" data-act="start">게임 시작</button>');
+      '<button class="btn-pill btn-pill--primary" data-act="start">게임 시작</button>' + lastBtn);
   }
   function resultView(){
     var g = GAMES[R.game];
+    var lk = R.lockUntil && now() < R.lockUntil, exitLabel = lockedGame ? '처음 화면' : '메뉴로';
     var lines = R.lines.map(function(l){ return '<p class="res-line">' + esc(l) + '</p>'; }).join('');
     var rec = R.record ? '<p class="res-record">\uD83C\uDFC6 신기록! (이전 내 최고 ' + R.prev + '점)</p>' : '<p class="res-record">내 최고 기록 ' + R.prev + '점</p>';
     return shell(chrome('결과', '', 'exit') +
       '<section class="patient-card"><p class="eyebrow">' + g.title + '</p>' +
       '<h2 class="res-score">' + R.score + '점</h2>' +
-      '<p class="res-who">' + esc(R.name) + ' · ' + esc(R.team) + '팀</p>' + lines + rec +
+      '<p class="res-who">' + esc(R.name) + ' · ' + esc(R.team === '인턴' ? '인턴' : R.team + '팀') + '</p>' + lines + rec +
       '<p class="res-stamp">' + stamp(R.at) + '</p></section>' +
       '<p class="hint center">이 화면을 캡처해서 제출해 주세요.</p>' +
-      '<div class="btn-row"><button class="btn-pill btn-pill--primary" data-act="again">다시 도전</button>' +
-      '<button class="btn-pill" data-act="exit">' + (lockedGame ? '처음 화면' : '메뉴로') + '</button></div>');
+      '<div class="btn-row"><button class="btn-pill btn-pill--primary" data-act="again" data-label="다시 도전"' + (lk ? ' disabled' : '') + '>' + (lk ? '잠시만요…' : '다시 도전') + '</button>' +
+      '<button class="btn-pill" data-act="exit" data-label="' + exitLabel + '"' + (lk ? ' disabled' : '') + '>' + (lk ? '잠시만요…' : exitLabel) + '</button></div>');
   }
   function render(){
     if (view === 'menu') app.innerHTML = menuView();
@@ -408,6 +423,7 @@
     else if (view === 'play') app.innerHTML = MODS[gameKey].view();
     else if (view === 'result') app.innerHTML = resultView();
     if (view !== 'play') window.scrollTo(0, 0);
+    if (view === 'result' && R && R.lockUntil > now()) setTimeout(unlockResult, R.lockUntil - now() + 30);
   }
   function syncName(){ var el = $('name'); if (el) player.name = el.value.trim(); }
   function startGame(){
@@ -419,6 +435,7 @@
   app.addEventListener('click', function(e){
     var el = e.target.closest ? e.target.closest('[data-act]') : null;
     if (!el || el.disabled) return;
+    if (view === 'result' && R && R.lockUntil && now() < R.lockUntil) return;   // 결과가 뜬 직후에는 잠시 입력을 무시
     var act = el.getAttribute('data-act');
     if (act === 'open') { gameKey = el.getAttribute('data-game'); view = 'setup'; render(); }
     else if (act === 'menu') { syncName(); view = 'menu'; render(); }
@@ -426,12 +443,24 @@
     else if (act === 'start') {
       syncName();
       var msg = $('setup-msg');
-      if (!player.name) { msg.className = 'hint hint--error'; msg.textContent = '이름을 입력해 주세요.'; $('name').focus(); return; }
-      if (!player.team) { msg.className = 'hint hint--error'; msg.textContent = '소속 팀을 선택해 주세요.'; return; }
+      if (!player.name) { msg.className = 'hint hint--error'; msg.textContent = '동물병원 닉네임을 입력해 주세요.'; $('name').focus(); return; }
+      if (!player.team) { msg.className = 'hint hint--error'; msg.textContent = '소속을 선택해 주세요.'; return; }
       saveProfile(); startGame();
     }
+    else if (act === 'lastresult') {
+      var lr = loadLast(gameKey);
+      if (lr) { R = { game:gameKey, name:lr.name, team:lr.team, score:lr.score, lines:lr.lines, at:new Date(lr.at), record:lr.record, prev:lr.prev, lockUntil:0 }; view = 'result'; render(); }
+    }
     else if (act === 'again') { startGame(); }
-    else if (act === 'exit') { stopLoop(); G = null; view = lockedGame ? 'setup' : 'menu'; render(); }
+    else if (act === 'exit') {
+      if ((view === 'result' || view === 'play') && !(exitArmed && armedView === view)) {      // 실수로 나가지 않도록 한 번 더 확인
+        exitArmed = true; armedView = view;
+        toast(view === 'result' ? '결과를 캡처하셨나요? 한 번 더 누르면 나갑니다.' : '게임을 그만둘까요? 한 번 더 누르면 나갑니다.');
+        setTimeout(function(){ exitArmed = false; }, 3000);
+        return;
+      }
+      exitArmed = false; stopLoop(); G = null; view = lockedGame ? 'setup' : 'menu'; render();
+    }
     else if (view === 'play' && G) { MODS[gameKey].click(act, el); }
   });
 
